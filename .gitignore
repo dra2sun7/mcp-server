@@ -1,0 +1,49 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pytest cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Log/temporary files
+*.log
+*.tmp
+*.temp
+
+# IDE/Editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Build results
+build/
+dist/
+*.egg-info/
+
+# Environment variable files
+.env
+.env.local
+.env.*.local
+
+# Others
+*.bak
+*.orig 
