@@ -9,6 +9,9 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from main import convert_all_pdfs_to_markdown
 
+# 테스트 환경 설정
+os.environ['TESTING'] = 'true'
+
 class TestPDFToMarkdown:
     
     def test_pdf_directory_exists(self):
@@ -82,6 +85,39 @@ class TestPDFToMarkdown:
                     
                     # print가 호출되었는지 확인
                     assert mock_print.called, "출력이 생성되지 않았습니다"
+    
+    def test_no_file_creation_in_testing(self):
+        """테스트 환경에서 파일이 생성되지 않는지 확인"""
+        pdf_files = [f for f in os.listdir("pdf") if f.lower().endswith('.pdf')]
+        if pdf_files:
+            test_pdf = pdf_files[0]
+            pdf_path = os.path.join("pdf", test_pdf)
+            expected_md_path = os.path.splitext(pdf_path)[0] + ".md"
+            
+            # 기존 .md 파일이 있다면 백업
+            original_md_exists = os.path.exists(expected_md_path)
+            if original_md_exists:
+                backup_path = expected_md_path + ".backup"
+                shutil.move(expected_md_path, backup_path)
+            
+            try:
+                with patch('main.DocumentConverter') as mock_converter:
+                    mock_doc = MagicMock()
+                    mock_doc.export_to_markdown.return_value = "# Test Markdown"
+                    mock_converter_instance = MagicMock()
+                    mock_converter_instance.convert.return_value.document = mock_doc
+                    mock_converter.return_value = mock_converter_instance
+                    
+                    # 함수 실행
+                    convert_all_pdfs_to_markdown()
+                    
+                    # .md 파일이 생성되지 않았는지 확인
+                    assert not os.path.exists(expected_md_path), "테스트 환경에서 .md 파일이 생성되었습니다"
+                    
+            finally:
+                # 백업 파일 복원
+                if original_md_exists:
+                    shutil.move(backup_path, expected_md_path)
 
 if __name__ == "__main__":
     pytest.main([__file__]) 
