@@ -3,3 +3,4 @@ docling==2.42.0
 pytest==8.4.1
 playwright==1.53.0
 requests==2.32.4
+fastmcp==2.10.6
