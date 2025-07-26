@@ -25,7 +25,9 @@ def convert_all_htmls_to_pdf(input_file_path="html", output_file_path="pdf"):
                         if os.path.exists(pdf_path):
                             print(f"⚠️  이미 존재하는 파일: {pdf_path}")
                             print(f"   기존 파일을 덮어씁니다.")
-                        page.pdf(path=pdf_path)
+                        
+                        # PDF 생성
+                        page.pdf(path=pdf_path, format='A4', print_background=True)
                         print(f"✅ PDF 파일 저장 완료: {pdf_path}")
                     else:
                         print(f"(테스트 환경) PDF 파일 생성 생략: {pdf_path}")
