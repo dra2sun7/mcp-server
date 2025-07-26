@@ -1,80 +1,157 @@
-# 🧠 MCP Server.
+# 🧠 MCP Server
 
-> Model Context Protocol 기반의 선택형 응답 API 서버  
-> FastAPI + Python으로 개발된 지능형 컨텍스트 선택 서버
+> Model Context Protocol 기반 문서 처리 파이프라인  
+> SEC EDGAR Filing 다운로드부터 Markdown 변환까지
 
 ---
 
 ## 📌 개요
 
-MCP (Model Context Protocol)는 사용자 요청을 수집하여 **문맥(Context)**을 구성하고, 이에 기반해 **다중 선택지 응답(Choices)**을 제공하는 프로토콜입니다.  
-이 프로젝트는 MCP를 구현한 **RESTful API 서버**로, 외부 모델 API와 연동하여 동적인 선택지 제공이 가능합니다.
+이 프로젝트는 MCP (Model Context Protocol) 기반의 문서 처리 파이프라인을 구현합니다.  
+SEC EDGAR에서 회사 Filing을 다운로드하고, HTML을 PDF로 변환한 후, 최종적으로 Markdown으로 변환하는 완전한 워크플로우를 제공합니다.
 
 ---
 
 ## 🚀 주요 기능
 
-- 사용자 발화를 분석해 문맥(Context) 구성
-- 선택 가능한 응답(Choices) 생성
-- 외부 AI 모델과 연동 (OpenAI GPT 등)
-- 문맥 초기화 및 갱신 기능 제공
-- RESTful API + Swagger UI 제공
+### 📊 download_sec_filing
+- SEC EDGAR API를 통한 회사 Filing 자동 다운로드
+- 8-K, 10-Q, 10-K, DEF 14A 지원
+- CIK 기반 회사 검색 및 최신 Filing 선택
+
+### 📄 html_to_pdf  
+- HTML 파일을 PDF로 변환
+- Playwright를 활용한 실제 브라우저 렌더링
+- 배치 처리 지원
+
+### 📝 read_me_markdown
+- PDF를 Markdown으로 변환
+- Docling 프레임워크 활용
+- 문서 구조 보존
 
 ---
 
-## �� 프로젝트 구조
-
+## 📂 프로젝트 구조
 
 ```
+mcp-server/
+├── download_sec_filing/     # SEC Filing 다운로드 도구
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── tests/
+│   └── README.md
+├── html_to_pdf/            # HTML to PDF 변환 도구
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── tests/
+│   └── README.md
+├── read_me_markdown/       # PDF to Markdown 변환 도구
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── tests/
+│   └── README.md
+├── requirements.txt        # 메인 프로젝트 의존성
+└── README.md              # 이 파일
+```
 
-# mcp-server
+---
 
-## Playwright 설치 및 사용 안내
+## 🔄 워크플로우
 
-이 프로젝트는 [Playwright](https://playwright.dev/python/)를 사용하여 HTML 파일을 PDF로 변환하는 기능을 포함합니다.
+```
+1. download_sec_filing → HTML 파일 다운로드
+2. html_to_pdf → HTML을 PDF로 변환  
+3. read_me_markdown → PDF를 Markdown으로 변환
+```
 
-### 1. 파이썬 라이브러리 설치
+---
+
+## 🛠️ 설치 및 설정
+
+### 1. 기본 의존성 설치
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Playwright 브라우저 설치 (html_to_pdf용)
 
 ```bash
 pip install playwright
-```
-
-### 2. Playwright 브라우저 실행 파일 설치 (필수!)
-
-Playwright는 파이썬 라이브러리만 설치하면 동작하지 않습니다. 
-**아래 명령어로 브라우저 실행 파일을 반드시 설치해야 합니다.**
-
-```bash
 playwright install
 ```
 
-- 이 명령어는 Chromium, Firefox, WebKit 등 Playwright가 사용할 브라우저를 자동으로 다운로드합니다.
-- 한 번만 실행하면 됩니다.
-
-#### (선택) 특정 브라우저만 설치하고 싶다면
+### 3. 각 도구별 의존성 설치
 
 ```bash
-playwright install chromium
-playwright install firefox
-playwright install webkit
-```
+# download_sec_filing
+cd download_sec_filing
+pip install -r requirements.txt
 
-> **중요:**  
-> `playwright install`을 실행하지 않으면  
-> "BrowserType.launch: Executable doesn't exist ..."  
-> 와 같은 에러가 발생합니다.
+# html_to_pdf  
+cd ../html_to_pdf
+pip install -r requirements.txt
 
----
-
-## 프로젝트 실행 예시
-
-```bash
-python html_to_pdf/main.py
+# read_me_markdown
+cd ../read_me_markdown
+pip install -r requirements.txt
 ```
 
 ---
 
-## 참고
+## 🚀 사용 예시
 
-- [Playwright 공식 문서 (Python)](https://playwright.dev/python/docs/intro)
+### 1. SEC Filing 다운로드
+
+```bash
+cd download_sec_filing
+python main.py
+```
+
+### 2. HTML을 PDF로 변환
+
+```bash
+cd html_to_pdf
+python main.py
+```
+
+### 3. PDF를 Markdown으로 변환
+
+```bash
+cd read_me_markdown
+python main.py
+```
+
+---
+
+## 🧪 테스트
+
+각 도구별로 테스트를 실행할 수 있습니다:
+
+```bash
+# download_sec_filing 테스트
+cd download_sec_filing
+pytest tests/
+
+# html_to_pdf 테스트
+cd ../html_to_pdf
+pytest tests/
+
+# read_me_markdown 테스트
+cd ../read_me_markdown
+pytest tests/
+```
+
+---
+
+## 📚 참고 자료
+
+- [SEC EDGAR API 문서](https://www.sec.gov/edgar/sec-api-documentation)
+- [Playwright 공식 문서](https://playwright.dev/python/docs/intro)
+- [Docling 프레임워크](https://github.com/docling-ai/docling)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+
+---
+
+> 본 프로젝트는 MCP 기반 문서 처리 파이프라인의 완전한 구현체입니다.
 
