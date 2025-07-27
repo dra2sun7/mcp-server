@@ -3,7 +3,7 @@ Docling 라이브러리 래퍼 클래스
 """
 import warnings
 from docling.document_converter import DocumentConverter
-from ..utils.exceptions import ConversionError
+from src.utils.exceptions import ConversionError
 
 
 class DoclingWrapper:

@@ -1,6 +1,12 @@
-# 메인 프로젝트 의존성
-docling==2.42.0
-pytest==8.4.1
-playwright==1.53.0
-requests==2.32.4
-fastmcp==2.10.6
+# FastMCP 및 핵심 의존성
+fastmcp>=2.10.3
+
+# SEC Filing 처리 관련
+requests>=2.32.0
+playwright>=1.53.0
+
+# 문서 처리 관련
+docling>=2.42.0
+
+# 개발 및 테스트 도구
+pytest>=8.4.0

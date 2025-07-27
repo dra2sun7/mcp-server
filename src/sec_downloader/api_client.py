@@ -5,162 +5,130 @@ import time
 import requests
 import json
 from typing import Dict, List
-from ..utils.exceptions import APIError, SECDownloadError
+from src.utils.exceptions import APIError, SECDownloadError
 
 
 class SECAPIClient:
     """SEC EDGAR API 클라이언트"""
     
     def __init__(self, user_agent: str = "MCP-Server/1.0 dra2sun7@gmail.com", rate_limit_delay: float = 0.1):
-        """
-        SEC API 클라이언트 초기화
-        
-        Args:
-            user_agent: User-Agent 헤더
-            rate_limit_delay: Rate limiting을 위한 대기 시간 (초)
-        """
         self.base_url = "https://data.sec.gov/submissions/CIK"
         self.user_agent = user_agent
         self.rate_limit_delay = rate_limit_delay
-        
-        self.headers = {
-            'User-Agent': user_agent
-        }
-    
-    def _rate_limit(self) -> None:
-        """Rate limiting을 위한 대기"""
-        time.sleep(self.rate_limit_delay)
+        self.headers = {'User-Agent': user_agent}
     
     def _normalize_cik(self, cik: str) -> str:
         """CIK를 10자리 형식으로 정규화"""
-        return cik.zfill(10)
+        # 숫자만 추출
+        cik_digits = ''.join(filter(str.isdigit, cik))
+        
+        # 10자리로 패딩
+        normalized_cik = cik_digits.zfill(10)
+        
+        return normalized_cik
     
-    def get_company_filings(self, cik: str) -> Dict:
-        """
-        회사의 Filing 정보를 가져옵니다.
-        
-        Args:
-            cik: 회사 CIK 번호
-            
-        Returns:
-            회사 Filing 정보
-            
-        Raises:
-            APIError: API 호출 실패 시
-            SECDownloadError: Filing 정보를 찾을 수 없을 때
-        """
-        normalized_cik = self._normalize_cik(cik)
-        filings_url = f"{self.base_url}{normalized_cik}.json"
-        
+    def _make_request(self, url: str) -> Dict:
+        """API 요청 수행"""
         try:
-            self._rate_limit()
-            print(f"📡 SEC API 호출: {filings_url}")
-            
-            response = requests.get(filings_url, headers=self.headers)
+            response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             
-            company_data = response.json()
+            # Rate limiting
+            time.sleep(self.rate_limit_delay)
             
-            # Filing 정보 추출
-            filings = company_data.get('filings', {}).get('recent', {})
+            return response.json()
             
-            if not filings:
-                raise SECDownloadError(f"CIK {normalized_cik}에 대한 Filing 정보를 찾을 수 없습니다.")
+        except requests.exceptions.RequestException as e:
+            raise APIError(f"API 요청 실패: {e}")
+    
+    def get_company_filings(self, cik: str) -> Dict:
+        """회사 정보 및 Filing 목록 조회"""
+        normalized_cik = self._normalize_cik(cik)
+        url = f"{self.base_url}{normalized_cik}.json"
+        
+        try:
+            data = self._make_request(url)
             
             return {
-                'company_data': company_data,
-                'filings': filings
+                'company_data': data.get('entityName', {}),
+                'filings': data.get('filings', {}).get('recent', {})
             }
             
-        except requests.exceptions.RequestException as e:
-            raise APIError(f"SEC EDGAR API 호출 중 오류 발생: {e}")
-        except json.JSONDecodeError as e:
-            raise APIError(f"JSON 파싱 오류: {e}")
+        except Exception as e:
+            raise SECDownloadError(f"회사 정보 조회 실패: {e}")
     
     def find_target_filings(self, filings: Dict, year: str, filing_type: str) -> List[Dict]:
-        """
-        특정 년도와 타입의 Filing을 찾습니다.
-        
-        Args:
-            filings: Filing 정보
-            year: 년도
-            filing_type: Filing 타입
+        """대상 Filing 찾기"""
+        try:
+            # Filing 데이터 추출
+            form_types = filings.get('form', [])
+            report_dates = filings.get('reportDate', [])
+            accession_numbers = filings.get('accessionNumber', [])
+            primary_docs = filings.get('primaryDocument', [])
             
-        Returns:
-            대상 Filing 목록
+            target_filings = []
             
-        Raises:
-            SECDownloadError: 해당 Filing을 찾을 수 없을 때
-        """
-        target_filings = []
-        
-        for i, (form_type, report_date) in enumerate(zip(filings.get('form', []), filings.get('reportDate', []))):
-            if form_type == filing_type and report_date.startswith(str(year)):
-                target_filings.append({
-                    'index': i,
-                    'form_type': form_type,
-                    'report_date': report_date,
-                    'accession_number': filings.get('accessionNumber', [])[i],
-                    'primary_document': filings.get('primaryDocument', [])[i]
-                })
-        
-        if not target_filings:
-            raise SECDownloadError(f"{year}년 {filing_type} Filing을 찾을 수 없습니다.")
-        
-        return target_filings
+            for i, form_type in enumerate(form_types):
+                if (form_type == filing_type and 
+                    i < len(report_dates) and 
+                    report_dates[i].startswith(year)):
+                    
+                    target_filings.append({
+                        'form_type': form_type,
+                        'report_date': report_dates[i],
+                        'accession_number': accession_numbers[i] if i < len(accession_numbers) else '',
+                        'primary_document': primary_docs[i] if i < len(primary_docs) else ''
+                    })
+            
+            if not target_filings:
+                raise SECDownloadError(f"{year}년 {filing_type} Filing을 찾을 수 없습니다.")
+            
+            return target_filings
+            
+        except Exception as e:
+            raise SECDownloadError(f"대상 Filing 검색 실패: {e}")
     
-    def get_latest_filing(self, target_filings: List[Dict]) -> Dict:
-        """가장 최근 Filing을 반환합니다."""
-        return max(target_filings, key=lambda x: x['report_date'])
+    def get_latest_filing(self, filings: List[Dict]) -> Dict:
+        """최신 Filing 선택"""
+        if not filings:
+            raise SECDownloadError("Filing 목록이 비어있습니다.")
+        
+        # 날짜순으로 정렬하여 최신 것 선택
+        sorted_filings = sorted(filings, key=lambda x: x['report_date'], reverse=True)
+        return sorted_filings[0]
     
     def download_filing_document(self, cik: str, accession_number: str, primary_doc: str) -> str:
-        """
-        Filing 문서를 다운로드합니다.
-        
-        Args:
-            cik: 회사 CIK 번호
-            accession_number: 접근 번호
-            primary_doc: 주요 문서명
-            
-        Returns:
-            다운로드된 문서 내용
-            
-        Raises:
-            APIError: 다운로드 실패 시
-        """
+        """Filing 문서 다운로드"""
         try:
-            # CIK에서 앞의 0 제거
-            clean_cik = cik.lstrip('0')
-            # 접근 번호에서 하이픈 제거
+            # Accession number에서 하이픈 제거
             clean_accession = accession_number.replace('-', '')
             
-            # SEC EDGAR 문서 URL
-            doc_url = f"https://www.sec.gov/Archives/edgar/data/{clean_cik}/{clean_accession}/{primary_doc}"
+            # 문서 URL 생성
+            doc_url = f"https://www.sec.gov/Archives/edgar/data/{cik}/{clean_accession}/{primary_doc}"
             
-            self._rate_limit()
-            print(f"📄 문서 다운로드: {doc_url}")
+            # 문서 다운로드
+            response = requests.get(doc_url, headers=self.headers)
+            response.raise_for_status()
             
-            doc_response = requests.get(doc_url, headers=self.headers)
-            doc_response.raise_for_status()
+            # Rate limiting
+            time.sleep(self.rate_limit_delay)
             
-            return doc_response.text
+            return response.text
             
         except requests.exceptions.RequestException as e:
-            raise APIError(f"문서 다운로드 실패: {e}")
+            raise SECDownloadError(f"문서 다운로드 실패: {e}")
     
     def validate_inputs(self, year: str, filing_type: str) -> None:
-        """
-        입력값을 검증합니다.
+        """입력값 검증"""
+        # 년도 검증
+        if not year.isdigit() or len(year) != 4:
+            raise ValueError("년도는 4자리 숫자여야 합니다.")
         
-        Args:
-            year: 년도
-            filing_type: Filing 타입
-            
-        Raises:
-            ValueError: 잘못된 입력값일 때
-        """
-        if not (2021 <= int(year) <= 2025):
-            raise ValueError("년도는 2021부터 2025까지만 지원됩니다.")
+        year_int = int(year)
+        if year_int < 1990 or year_int > 2025:
+            raise ValueError("년도는 1990-2025 사이여야 합니다.")
         
-        if filing_type not in ["8-K", "10-Q", "10-K", "DEF 14A"]:
-            raise ValueError("지원되지 않는 filing_type입니다. '8-K', '10-Q', '10-K', 'DEF 14A' 중 선택하세요.") 
+        # Filing 타입 검증
+        valid_types = ["8-K", "10-Q", "10-K", "DEF 14A"]
+        if filing_type not in valid_types:
+            raise ValueError(f"Filing 타입은 다음 중 하나여야 합니다: {', '.join(valid_types)}") 
